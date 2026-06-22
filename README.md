@@ -4,6 +4,11 @@
 [![GitHub stars](https://img.shields.io/github/stars/jinghui1984/trilium-wechatsync)](https://github.com/jinghui1984/trilium-wechatsync/stargazers)
 
 > 让 TriliumNext 笔记一键发布到微信公众号、知乎、CSDN、什么值得买、掘金等 20+ 中文自媒体平台的桥接系统。
+预览图：
+<img width="698" height="343" alt="1" src="https://github.com/user-attachments/assets/5b60ae6d-df51-48cc-a80c-dcb946d7ead4" />
+<img width="652" height="675" alt="2" src="https://github.com/user-attachments/assets/fd278e44-8a9e-422b-9823-240a2d382ce5" />
+<img width="683" height="351" alt="3" src="https://github.com/user-attachments/assets/bb402d7f-926f-4863-91e5-00445dc25f4b" />
+
 
 ## ✨ 功能
 
