@@ -1,4 +1,4 @@
-# TriliumNext × WechatSync Publisher Bridge
+# TriliumNext × WechatSync Publisher Bridge 同时同步多篇文章
 
 ![License](https://img.shields.io/github/license/jinghui1984/trilium-wechatsync)
 [![GitHub stars](https://img.shields.io/github/stars/jinghui1984/trilium-wechatsync)](https://github.com/jinghui1984/trilium-wechatsync/stargazers)
