@@ -1,0 +1,14 @@
+[Unit]
+Description=WechatSync Bridge Server
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root
+ExecStart=/usr/local/bin/node /usr/local/share/wechatsync-bridge/wechatsync-server.mjs
+Restart=always
+RestartSec=5
+Environment=SYNC_WS_PORT=9600
+[Install]
+WantedBy=multi-user.target

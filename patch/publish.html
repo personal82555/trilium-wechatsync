@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>📤 发布控制台</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f5f5f5;padding:20px;max-width:1200px;margin:0 auto;color:#333}
+.header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;padding:16px 20px;background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.header h1{font-size:18px;margin:0}
+.container{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.section{margin-bottom:24px}
+.section h2{font-size:15px;margin-bottom:12px;color:#666}
+input,select,button{font-size:14px}
+.input-row{display:flex;gap:8px;margin-bottom:12px}
+.input-row input{flex:1;padding:8px 12px;border:1px solid #ddd;border-radius:6px}
+.btn{padding:8px 16px;border:none;border-radius:6px;cursor:pointer;font-size:14px;background:#2563eb;color:#fff}
+.btn:hover{background:#1d4ed8}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.article-info{padding:12px;background:#f8fafc;border-radius:8px;margin-bottom:12px;line-height:1.8}
+.article-info label{color:#888;font-size:13px;margin-right:4px}
+.platform-list{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.platform-item{display:flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer;transition:all .15s}
+.platform-item:hover{border-color:#2563eb;background:#f0f4ff}
+.platform-item.selected{border-color:#2563eb;background:#eff6ff}
+.platform-item input{margin:0}
+.result-table{width:100%;border-collapse:collapse;font-size:14px}
+.result-table th{padding:8px 12px;background:#f8fafc;border-bottom:2px solid #e2e8f0;text-align:left;font-weight:600;color:#666}
+.result-table td{padding:8px 12px;border-bottom:1px solid #f0f0f0}
+.result-table .platform-name{font-weight:500}
+.status-badge{display:inline-block;padding:2px 10px;border-radius:10px;font-size:12px}
+.status-success{background:#dcfce7;color:#16a34a}
+.status-failed{background:#fef2f2;color:#dc2626}
+.result-url{color:#2563eb;text-decoration:none}
+.result-url:hover{text-decoration:underline}
+.loading{text-align:center;padding:40px;color:#999}
+.error{color:#dc2626;padding:12px;background:#fef2f2;border-radius:8px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div class="header">
+    <h1>📤 发布控制台</h1>
+    <span id="bridgeStatus" style="font-size:12px;margin-right:12px;display:flex;align-items:center;gap:4px"></span>
+    <span id="statusText">加载中...</span>
+</div>
+<div class="container">
+    <div id="noteSelector" class="section">
+        <h2>📄 选择文章</h2>
+        <div class="input-row">
+            <input id="noteId" type="text" placeholder="如: PuLnqqL23KQo" />
+            <button class="btn" onclick="loadArticle()">加载</button>
+        </div>
+        <div id="articleInfo" class="article-info" style="display:none"></div>
+    </div>
+    <div id="platformSelector" class="section" style="display:none">
+        <h2>🎯 发布到哪些平台？</h2>
+        <div id="platformList" class="platform-list"></div>
+        <div style="margin-top:4px;font-size:12px;color:#888">
+            <label><input type="checkbox" onchange="toggleAll(this)" /> 全选/取消</label>
+        </div>
+    </div>
+    <div id="actionRow" class="section" style="display:none">
+        <button id="publishBtn" class="btn" onclick="publish()">🚀 发布到选中平台</button>
+    </div>
+    <div id="results" class="section" style="display:none">
+        <h2>📋 发布结果</h2>
+        <table class="result-table">
+            <thead><tr><th>平台</th><th>状态</th><th>编辑链接</th><th>时间</th><th>详情</th></tr></thead>
+            <tbody id="resultBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+const API = "";
+function $(id){return document.getElementById(id)}
+
+async function init(){
+    try{
+        // Check bridge status (non-blocking)
+        fetch(API+"/api/publisher/status?_t="+Date.now(),{credentials:"include"}).then(r=>r.json()).then(d=>{
+            var el=$("bridgeStatus");
+            if(!d||!d.bridge)return;
+            if(d.bridge.extensionConnected){
+                el.innerHTML='<span style="color:#22c55e">🟢 同步助手在线</span>';
+            }else if(d.bridge.online){
+                el.innerHTML='<span style="color:#eab308;cursor:pointer;text-decoration:underline;text-decoration-style:dashed" onclick="showBridgeHelp()">🟡 扩展未连接 · 点此设置</span>';
+            }else{
+                el.innerHTML='<span style="color:#ef4444;cursor:pointer;text-decoration:underline;text-decoration-style:dashed" onclick="showBridgeHelp()">🔴 桥接离线 · 点此修复</span>';
+            }
+        }).catch(()=>{});
+
+        var r=await fetch(API+"/api/publisher/platforms?_t="+Date.now(),{credentials:"include"});
+        if(r.status===401){$("statusText").textContent="⛔ 请先登录";return}
+        var d=await r.json();
+        window.platforms=d.platforms||[];
+        renderPlatforms();
+        $("statusText").textContent="就绪 · "+window.platforms.length+" 个平台";
+    }catch(e){$("statusText").textContent="加载失败"}
+}
+
+function showBridgeHelp(){
+    var msg = "## 同步助手设置\n\n**Chrome 扩展：**\n1. 安装 WechatSync 扩展\n2. 扩展设置 → 选择 WebSocket 模式\n3. 服务器地址：`ws://192.168.68.19:9600`\n4. Token：复制桥接配置中的 token\n5. 点连接\n\n**检查：** F5 刷新本页，顶部显示 🟢 同步助手在线";
+    alert(msg.replace(/\*\*/g,""));
+}
+
+async function loadArticle(){
+    var noteId=$("noteId").value.trim();
+    if(!noteId)return;
+    $("statusText").textContent="加载中...";
+    try{
+        var r=await fetch(API+"/api/publisher/notes-with-children/"+noteId+"?_t="+Date.now(),{credentials:"include"});
+        if(!r.ok){throw new Error("HTTP "+r.status)}
+        var d=await r.json();
+        if(d.error){throw new Error(d.error)}
+        var note=d.note, children=d.children||[];
+        var html='<label>📌</label> <strong>'+escapeHtml(note.title)+'</strong>';
+        if(children.length){
+            html+='<br><label>子笔记:</label> '+children.map(c=>'<span style="display:inline-block;padding:2px 8px;background:#e5e7eb;border-radius:4px;margin:2px;font-size:12px">'+escapeHtml(c.title)+'</span>').join(", ");
+        }
+        $("articleInfo").innerHTML=html;
+        $("articleInfo").style.display="block";
+        $("platformSelector").style.display="block";
+        $("actionRow").style.display="block";
+        $("results").style.display="none";
+        $("statusText").textContent="已加载: "+note.title;
+    }catch(e){alert("加载失败: "+e.message);$("statusText").textContent="加载失败"}
+}
+
+function renderPlatforms(){
+    $("platformList").innerHTML=(window.platforms||[]).map(p=>
+        '<label class="platform-item" onclick="togglePlatform(this)">'+
+        '<input type="checkbox" value="'+p.id+'" /> '+escapeHtml(p.name)+
+        '</label>'
+    ).join("");
+}
+
+function togglePlatform(el){var cb=el.querySelector("input");cb.checked=!cb.checked;el.classList.toggle("selected",cb.checked)}
+function toggleAll(el){document.querySelectorAll("#platformList input").forEach(c=>{c.checked=el.checked;c.closest(".platform-item").classList.toggle("selected",el.checked)})}
+
+async function publish(){
+    var ids=[];
+    document.querySelectorAll("#platformList input:checked").forEach(c=>ids.push(c.value));
+    if(!ids.length){alert("请至少选一个平台");return}
+    var noteId=$("noteId").value.trim();
+    $("publishBtn").disabled=true;$("publishBtn").textContent="⏳ 发布中...";$("results").style.display="none";
+
+    try{
+        var r=await fetch(API+"/api/publisher/publish",{
+            method:"POST",headers:{"Content-Type":"application/json"},credentials:"include",
+            body:JSON.stringify({noteId,platformIds:ids})
+        });
+        var d=await r.json();
+        if(d.error){alert(d.error);return}
+        showResults(d.results||[]);
+    }catch(e){alert("发布失败: "+e.message)}
+    finally{$("publishBtn").disabled=false;$("publishBtn").textContent="🚀 发布到选中平台"}
+}
+
+function showResults(results){
+    $("results").style.display="block";
+    var tbody=$("resultBody");
+
+    if(!results.length){
+        tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:#999">无发布结果</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML=results.map(r=>{
+        var statusClass=r.status==="success"?"status-success":"status-failed";
+        var statusText=r.status==="success"?"✅ 成功":"❌ 失败";
+        var urlHtml=r.url?'<a href="'+r.url+'" target="_blank" class="result-url">✏️ 编辑草稿</a>':'—';
+        var errorHtml=r.errorMessage?'<span style="font-size:12px;color:#888" title="'+escapeHtml(r.errorMessage)+'">'+escapeHtml(r.errorMessage.substring(0,30))+'…</span>':'—';
+        return '<tr>'+
+            '<td class="platform-name">'+escapeHtml(r.platformName||r.platform)+'</td>'+
+            '<td><span class="status-badge '+statusClass+'">'+statusText+'</span></td>'+
+            '<td>'+urlHtml+'</td>'+
+            '<td style="font-size:12px;color:#888">'+(r.publishedAt?new Date(r.publishedAt).toLocaleTimeString():'—')+'</td>'+
+            '<td>'+errorHtml+'</td>'+
+        '</tr>';
+    }).join("");
+}
+
+function escapeHtml(s){if(!s)return "";return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
+
+init();
+</script>
+</body>
+</html>
